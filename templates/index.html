@@ -67,6 +67,7 @@
         </div>
         <div class="column panel">
             <canvas id="wealthChart"></canvas>
+            <div id="wealth_delta" style="margin-top:14px; font-size:0.9rem; font-weight:bold;"></div>
         </div>
     </div>
 
@@ -399,6 +400,16 @@
                 deltaEl.innerText = `Buying costs $${formatMoney(delta)} more in unrecoverable spending`;
             } else {
                 deltaEl.innerText = `Renting costs $${formatMoney(Math.abs(delta))} more in unrecoverable spending`;
+            }
+
+            const buyWealth = data?.wealth_buy?.[data.wealth_buy.length - 1] ?? 0;
+            const rentWealth = data?.wealth_rent?.[data.wealth_rent.length - 1] ?? 0;
+            const wealthDelta = buyWealth - rentWealth;
+            const wealthDeltaEl = document.getElementById('wealth_delta');
+            if (wealthDelta > 0) {
+                wealthDeltaEl.innerText = `Buying leaves you $${formatMoney(wealthDelta)} wealthier`;
+            } else {
+                wealthDeltaEl.innerText = `Renting leaves you $${formatMoney(Math.abs(wealthDelta))} wealthier`;
             }
 
             document.getElementById('bd_interest').innerText = '$' + formatMoney(data?.total_interest_paid ?? 0);
