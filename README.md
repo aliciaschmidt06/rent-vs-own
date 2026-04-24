@@ -4,6 +4,10 @@ An interactive calculator that models the long-term financial outcomes of rentin
 
 ![screenshot](image.png)
 
+## Disclaimer
+
+This is not to be construed as financial advice. It is simply a personal tool to help compare renting vs. buying options. This is an open source project — please feel free to review and confirm the math yourself.
+
 ## Setup & Run
 
 **Requirements:** Python 3.8+
