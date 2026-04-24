@@ -2,6 +2,8 @@
 
 An interactive calculator that models the long-term financial outcomes of renting vs. buying a home. It runs a month-by-month simulation over your chosen time horizon, tracking sunk costs, home equity, and investment portfolio growth — so you can see which path leaves you wealthier and by how much.
 
+![screenshot](image.png)
+
 ## Setup & Run
 
 **Requirements:** Python 3.8+
@@ -15,7 +17,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 3. Start the server
-python better.py
+python app.py
 ```
 
 Then open [http://localhost:5001](http://localhost:5001) in your browser.
