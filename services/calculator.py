@@ -52,14 +52,13 @@ def simulate_rent_vs_buy(params):
     closing_costs = max(safe_float(params.get('closing_costs_amount'), 0.0), 0.0) if include_closing_costs else 0.0
 
     rent_insurance = max(safe_float(params.get('rent_insurance'), 20.0), 0.0)
-    home_insurance = max(safe_float(params.get('home_insurance'), 1000.0), 0.0)
+    home_insurance = max(safe_float(params.get('home_insurance'), 100.0), 0.0)
 
     balance = loan_amount
     home_value = home_price
     rent_payment = max(safe_float(params.get('monthly_rent'), 3000.0), 0.0)
     invest_balance = initial_investment
 
-    rent_inflation = normalize_rate(rent_inflation)
     cumulative_buy_spending = down_payment + closing_costs
     cumulative_buy_sunk = closing_costs
     cumulative_interest = 0.0

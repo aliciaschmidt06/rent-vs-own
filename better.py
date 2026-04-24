@@ -15,8 +15,8 @@ DEFAULTS = {
     'home_price': 1000000.0,
     'down_payment': 200000.0,
     'property_tax_rate': 0.01,
-    'maintenance_rate': 0.005,
-    'home_insurance': 1000.0,
+    'maintenance_rate': 0.2,
+    'home_insurance': 100.0,
     'include_closing_costs': True,
     'years': 25,
 }
