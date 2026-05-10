@@ -20,6 +20,9 @@
         button:hover { background: #0056cc; }
         button.secondary { margin-top: 8px; padding: 6px 12px; font-size: 0.85rem; background: #6c757d; }
         button.secondary:hover { background: #495057; }
+        button.secondary.active { background: #28a745; }
+        button.secondary.active:hover { background: #1e7e34; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
         .breakdown-table { width: 100%; font-size: 0.82rem; color: #555; border-collapse: collapse; margin-top: 6px; }
         .breakdown-table td { padding: 3px 4px; vertical-align: middle; }
         .breakdown-table td:last-child { text-align: right; white-space: nowrap; }
@@ -33,12 +36,14 @@
     </style>
 </head>
 <body>
-    <h2>Rent vs Buy Calculator</h2>
+    <h2>Rent vs Buy Calculator 🇨🇦</h2>
 
     <div class="row">
         <div class="column panel">
             <canvas id="spendingChart"></canvas>
             <div id="bd_delta" style="margin-top:14px; font-size:0.9rem; font-weight:bold;"></div>
+            <button class="secondary" id="investDiffBtn" onclick="toggleInvestSunkDiff()" style="margin-top:10px;">Invest the Sunk Cost Difference</button>
+            <div id="investDiffNote" style="display:none; margin-top:8px; font-size:0.82rem;"></div>
             <details style="margin-top:8px; font-size:0.85rem;">
                 <summary style="cursor:pointer; color:#555;">🏠 Housing breakdown</summary>
                 <p style="margin:6px 0 4px; font-size:0.78rem; color:#777;">All the money you spend on the house that builds zero equity — interest on the mortgage, property tax, maintenance, and closing costs. Principal payments are excluded since you get that back as equity.</p>
@@ -92,13 +97,19 @@
 
             <label for="years">Simulation Years</label>
             <input type="number" id="years" min="1" max="40" step="1" value="25" oninput="calculate()" onchange="calculate()">
+
+            <label class="info-cell" style="display:inline-block;">Starting Money
+                <button class="info-btn" onclick="toggleInfoPopup('starting-money-popup', event)" style="margin-left:6px;">i</button>
+                <div class="info-popup" id="starting-money-popup" style="width:270px;">All the cash and investments you currently have.<br><br><b>If buying:</b> your down payment is deducted from this; the remainder stays invested in stocks.<br><br><b>If renting:</b> 80% is invested in the market (a 20% cash buffer is kept in reserve).</div>
+            </label>
+            <input type="text" inputmode="decimal" id="starting_money" value="200,000" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
         </div>
 
         <div class="column panel">
             <h3>Rent</h3>
             <label for="monthly_rent">Monthly Rent</label>
-            <input type="text" inputmode="decimal" id="monthly_rent" value="3,000" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
-            <button class="secondary" onclick="investTheDifference()">Invest the Difference</button>
+            <input type="text" inputmode="decimal" id="monthly_rent" value="3,500" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
+            <button class="secondary" id="investDiffRentBtn" onclick="investTheDifference()">Invest the Difference</button>
 
             <label>
                 <input type="checkbox" id="rent_increase" checked onchange="toggleRentInflation(); calculate()"> Apply annual rent inflation
@@ -109,11 +120,8 @@
             <label for="rent_insurance">Renters Insurance ($/month)</label>
             <input type="text" inputmode="decimal" id="rent_insurance" value="20" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
 
-            <label for="initial_investment">Current Investment Holdings</label>
-            <input type="text" inputmode="decimal" id="initial_investment" value="0" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
-
             <label for="monthly_invest">Monthly Investment</label>
-            <input type="text" inputmode="decimal" id="monthly_invest" value="1,000" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
+            <input type="text" inputmode="decimal" id="monthly_invest" value="2,000" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
 
             <div class="results">
                 <h4>Results</h4>
@@ -126,12 +134,12 @@
         <div class="column panel">
             <h3>Buy</h3>
             <label for="home_price">Home Price</label>
-            <input type="text" inputmode="decimal" id="home_price" value="1,000,000" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
+            <input type="text" inputmode="decimal" id="home_price" value="870,000" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
 
             <label for="down_payment">Down Payment</label>
             <input type="text" inputmode="decimal" id="down_payment" value="200,000" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
 
-            <label for="property_tax_rate" class="info-cell" style="display:inline-block;">Property Tax Rate (%)
+            <label class="info-cell" style="display:inline-block;">Property Tax ($/year)
                 <button class="info-btn" onclick="toggleInfoPopup('city-tax-popup', event)" style="margin-left:6px;">i</button>
                 <div class="info-popup" id="city-tax-popup" style="width:260px;">
                     <strong style="font-size:0.8rem;">🇨🇦 Canadian City Rates (2024–2026)</strong>
@@ -146,12 +154,19 @@
                         <tr><td>Regina, SK</td><td style="text-align:right;">1.587%</td></tr>
                         <tr><td>Winnipeg, MB</td><td style="text-align:right;">2.64% – 2.67%</td></tr>
                     </table>
+                    <div style="margin-top:6px; font-size:0.74rem; color:#888;">Tip: multiply rate × home price to get your yearly amount.</div>
                 </div>
             </label>
-            <input type="number" id="property_tax_rate" min="0" max="10" step="0.01" value="1.00" oninput="calculate()" onchange="calculate()">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <input type="text" inputmode="decimal" id="property_tax_yearly" value="5,000" oninput="updatePropertyTaxPercent(); calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); updatePropertyTaxPercent(); calculate()" style="flex:1;">
+                <span class="small" id="property_tax_pct" style="white-space:nowrap; min-width:70px;">= 1.000%</span>
+            </div>
 
-            <label for="maintenance_rate">Maintenance Rate (%)</label>
-            <input type="number" id="maintenance_rate" min="0" max="10" step="0.01" value="0.50" oninput="calculate()" onchange="calculate()">
+            <label for="maintenance_yearly">Maintenance ($/year)</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <input type="text" inputmode="decimal" id="maintenance_yearly" value="5,000" oninput="updateMaintenancePercent(); calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); updateMaintenancePercent(); calculate()" style="flex:1;">
+                <span class="small" id="maintenance_pct" style="white-space:nowrap; min-width:70px;">= 0.500%</span>
+            </div>
 
             <label for="home_insurance">Home Insurance ($/month)</label>
             <input type="text" inputmode="decimal" id="home_insurance" value="100" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
@@ -185,10 +200,86 @@
                 </table>
             </div>
 
+            <label for="buy_monthly_invest">Monthly Investment</label>
+            <input type="text" inputmode="decimal" id="buy_monthly_invest" value="0" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
+            <div class="small" id="buy_invest_diff_note" style="display:none; color:#28a745;"></div>
+
             <div class="results">
                 <h4>Results</h4>
-                <span>Monthly Mortgage: <strong id="mortgage">0</strong></span>
+                <span>Monthly Mortgage<em id="mortgage_label" style="font-style:normal; color:#888; font-size:0.85em;"></em>: <strong id="mortgage">0</strong></span>
+                <span id="next_mortgage_row" style="display:none;">Next Home Mortgage: <strong id="next_mortgage">0</strong></span>
                 <span>Final Home Value: <strong id="final_home_value">0</strong></span>
+            </div>
+
+            <div style="border-top:1px solid #eee; margin-top:16px; padding-top:12px;">
+                <label style="display:flex; align-items:center; gap:6px; font-weight:normal;">
+                    <input type="checkbox" id="plan_to_sell" onchange="toggleSellBuy(); calculate()">
+                    Plan to sell &amp; buy a different home
+                </label>
+                <div id="sell_buy_section" style="display:none; margin-top:12px;">
+                    <label for="sell_year">Year of sale</label>
+                    <input type="number" id="sell_year" min="1" max="39" value="10" oninput="updateSellPriceEstimate(); calculate()" onchange="updateSellPriceEstimate(); calculate()">
+
+                    <label for="sell_price">Selling price of current home</label>
+                    <input type="text" inputmode="decimal" id="sell_price" value="" oninput="sellPriceUserModified=true; calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
+                    <div class="small" id="sell_price_est"></div>
+
+                    <div style="margin-top:10px; font-size:0.82rem; color:#555; font-weight:bold;">Selling costs</div>
+                    <table class="breakdown-table editable" style="margin-top:4px;">
+                        <tr>
+                            <td>Realtor commission</td>
+                            <td><input type="number" id="sell_costs_rate" min="0" max="15" step="0.1" value="5" oninput="calculate()" onchange="calculate()"> %</td>
+                            <td id="sell_commission_amount">—</td>
+                        </tr>
+                        <tr>
+                            <td>Legal + mortgage discharge</td>
+                            <td colspan="2"><input type="text" inputmode="decimal" id="sell_legal_fee" value="1,500" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()"> $</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td>Total selling costs</td>
+                            <td colspan="2" id="sell_costs_total">—</td>
+                        </tr>
+                    </table>
+                    <div class="small" style="margin-top:3px;">Legal ~$1,200 + mortgage discharge ~$300</div>
+
+                    <label for="new_home_price" style="margin-top:14px; display:block;">New home price</label>
+                    <input type="text" inputmode="decimal" id="new_home_price" value="" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()">
+
+                    <div style="margin-top:10px; font-size:0.82rem; color:#555; font-weight:bold;">New home closing costs</div>
+                    <table class="breakdown-table editable" style="margin-top:4px;">
+                        <tr>
+                            <td>Land transfer tax</td>
+                            <td><input type="number" id="new_home_ltt_rate" min="0" max="10" step="0.1" value="1.5" oninput="calculate()" onchange="calculate()"> %</td>
+                            <td id="new_ltt_amount">—</td>
+                        </tr>
+                        <tr>
+                            <td>Legal / notary</td>
+                            <td colspan="2"><input type="text" inputmode="decimal" id="new_home_lawyer" value="1,500" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()"> $</td>
+                        </tr>
+                        <tr>
+                            <td>Home inspection</td>
+                            <td colspan="2"><input type="text" inputmode="decimal" id="new_home_inspection" value="500" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()"> $</td>
+                        </tr>
+                        <tr>
+                            <td>Appraisal + title ins.</td>
+                            <td colspan="2"><input type="text" inputmode="decimal" id="new_home_title_appraisal" value="850" oninput="calculate()" onfocus="unformatInput(this)" onblur="formatInput(this); calculate()"> $</td>
+                        </tr>
+                        <tr>
+                            <td class="info-cell">GST / HST<button class="info-btn" onclick="toggleInfoPopup('gst-popup', event)" style="margin-left:4px;">i</button><div class="info-popup" id="gst-popup">0% for resale homes — GST/HST does not apply. For new construction: 5% GST (all provinces) or 13% HST (Ontario). Note: Ontario removed HST on new homes ≤ $1M in 2026.</div></td>
+                            <td><input type="number" id="new_home_gst_hst_rate" min="0" max="15" step="0.1" value="0" oninput="calculate()" onchange="calculate()"> %</td>
+                            <td id="new_gst_amount">—</td>
+                        </tr>
+                        <tr>
+                            <td class="info-cell">CMHC insurance<button class="info-btn" onclick="toggleInfoPopup('cmhc-popup', event)" style="margin-left:4px;">i</button><div class="info-popup" id="cmhc-popup">Required if down payment &lt; 20% of new home price. Rates: 4.0% (LTV &gt; 90%), 3.1% (85–90%), 2.8% (80–85%). Added directly to the mortgage — not paid upfront.</div></td>
+                            <td colspan="2" id="new_cmhc_amount">—</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td>Total closing costs</td>
+                            <td colspan="2" id="new_home_closing_total">—</td>
+                        </tr>
+                    </table>
+                    <div class="small" id="sell_net_note" style="margin-top:6px; color:#555;"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -196,21 +287,30 @@
     <script>
         let lastMortgagePayment = 0;
         let lastMonthlyBuyCost = 0;
+        let investSunkDiff = false;
+        let sellPriceUserModified = false;
 
         const defaultState = {
             interest_rate: 0.0445,
             stock_return: 0.07,
             home_return: 0.03,
-            monthly_rent: 3000,
+            monthly_rent: 3500,
             rent_insurance: 20,
             rent_increase: true,
             rent_inflation: 0.03,
-            initial_investment: 0,
-            monthly_invest: 1000,
-            home_price: 1000000,
+            starting_money: 200000,
+            monthly_invest: 2000,
+            buy_monthly_invest: 0,
+            sell_legal_fee: 1500,
+            new_home_ltt_rate: 1.5,
+            new_home_lawyer: 1500,
+            new_home_inspection: 500,
+            new_home_title_appraisal: 850,
+            new_home_gst_hst_rate: 0,
             down_payment: 200000,
-            property_tax_rate: 1.0,
-            maintenance_rate: 0.2,
+            home_price: 870000,
+            property_tax_yearly: 5000,
+            maintenance_yearly: 5000,
             home_insurance: 100,
             include_closing_costs: true,
             land_transfer_rate: 1.5,
@@ -219,6 +319,16 @@
             title_misc_cost: 300,
             years: 25,
         };
+
+        function toggleInvestSunkDiff() {
+            investSunkDiff = !investSunkDiff;
+            const btn = document.getElementById('investDiffBtn');
+            const note = document.getElementById('investDiffNote');
+            btn.classList.toggle('active', investSunkDiff);
+            btn.innerText = investSunkDiff ? 'Investing Sunk Cost Difference ✓' : 'Invest the Sunk Cost Difference';
+            note.style.display = investSunkDiff ? '' : 'none';
+            calculate();
+        }
 
         function renderRangeValue(rangeId, labelId) {
             document.getElementById(labelId).innerText = (Number(document.getElementById(rangeId).value) * 100).toFixed(1) + '%';
@@ -254,12 +364,86 @@
             document.getElementById('closing_cost_total').innerText = '$' + formatMoney(total);
         }
 
+        function updatePropertyTaxPercent() {
+            const homePrice = parseNumber('home_price', defaultState.home_price);
+            const yearly = parseNumber('property_tax_yearly', defaultState.property_tax_yearly);
+            const pct = homePrice > 0 ? (yearly / homePrice * 100) : 0;
+            document.getElementById('property_tax_pct').innerText = `= ${pct.toFixed(3)}%`;
+        }
+
+        function updateMaintenancePercent() {
+            const homePrice = parseNumber('home_price', defaultState.home_price);
+            const yearly = parseNumber('maintenance_yearly', defaultState.maintenance_yearly);
+            const pct = homePrice > 0 ? (yearly / homePrice * 100) : 0;
+            document.getElementById('maintenance_pct').innerText = `= ${pct.toFixed(3)}%`;
+        }
+
         function toggleRentInflation() {
             const enabled = document.getElementById('rent_increase').checked;
             document.getElementById('rent_inflation').disabled = !enabled;
         }
 
-        const CURRENCY_INPUTS = ['monthly_rent','rent_insurance','initial_investment','monthly_invest','home_price','down_payment','home_insurance','lawyer_cost','inspection_cost','title_misc_cost'];
+        function toggleSellBuy() {
+            const enabled = document.getElementById('plan_to_sell').checked;
+            document.getElementById('sell_buy_section').style.display = enabled ? '' : 'none';
+            if (enabled) {
+                sellPriceUserModified = false;
+                updateSellPriceEstimate();
+                if (!document.getElementById('new_home_price').value) {
+                    const hp = parseNumber('home_price', defaultState.home_price);
+                    document.getElementById('new_home_price').value = Math.round(hp).toLocaleString('en-CA');
+                }
+            }
+        }
+
+        function updateSellPriceEstimate() {
+            const homePrice = parseNumber('home_price', defaultState.home_price);
+            const homeReturn = parseNumber('home_return', defaultState.home_return);
+            const sellYear = parseInt(document.getElementById('sell_year').value) || 10;
+            const estimated = homePrice * Math.pow(1 + homeReturn, sellYear);
+            document.getElementById('sell_price_est').innerText = 'Est. market value at year ' + sellYear + ': $' + formatMoney(estimated);
+            if (!sellPriceUserModified) {
+                document.getElementById('sell_price').value = Math.round(estimated).toLocaleString('en-CA');
+            }
+        }
+
+        function updateSellTransitionDisplay(data) {
+            if (!document.getElementById('plan_to_sell').checked) return;
+            const sellPrice = parseNumber('sell_price', 0);
+            const newHomePrice = parseNumber('new_home_price', 0);
+            const commission = sellPrice * (parseNumber('sell_costs_rate', 5) / 100);
+            const sellLegal = parseNumber('sell_legal_fee', defaultState.sell_legal_fee);
+            document.getElementById('sell_commission_amount').innerText = '$' + formatMoney(commission);
+            document.getElementById('sell_costs_total').innerText = '$' + formatMoney(commission + sellLegal);
+
+            if (newHomePrice > 0) {
+                const lttAmt = newHomePrice * (parseNumber('new_home_ltt_rate', defaultState.new_home_ltt_rate) / 100);
+                const gstAmt = newHomePrice * (parseNumber('new_home_gst_hst_rate', defaultState.new_home_gst_hst_rate) / 100);
+                const cmhc = data?.new_cmhc_premium ?? 0;
+                const lawyer = parseNumber('new_home_lawyer', defaultState.new_home_lawyer);
+                const inspection = parseNumber('new_home_inspection', defaultState.new_home_inspection);
+                const titleAppraisal = parseNumber('new_home_title_appraisal', defaultState.new_home_title_appraisal);
+                const total = lttAmt + lawyer + inspection + titleAppraisal + gstAmt + cmhc;
+                document.getElementById('new_ltt_amount').innerText = '$' + formatMoney(lttAmt);
+                document.getElementById('new_gst_amount').innerText = '$' + formatMoney(gstAmt);
+                document.getElementById('new_cmhc_amount').innerText = cmhc > 0
+                    ? '$' + formatMoney(cmhc) + ' (added to mortgage)'
+                    : '—  (≥ 20% down, not required)';
+                document.getElementById('new_home_closing_total').innerText = '$' + formatMoney(total);
+
+                const t = data?.sell_transition;
+                if (t) {
+                    const noteEl = document.getElementById('sell_net_note');
+                    if (t.new_down > 0) {
+                        noteEl.innerText = `Net after all costs: $${formatMoney(t.gross_proceeds)} gross → $${formatMoney(t.new_down)} used as new down payment (${(t.new_down / newHomePrice * 100).toFixed(1)}% of new home).`;
+                    } else {
+                        noteEl.innerText = `⚠️ Proceeds don't cover all costs — new home mortgaged at 100%.`;
+                    }
+                }
+            }
+        }
+
+        const CURRENCY_INPUTS = ['monthly_rent','rent_insurance','starting_money','monthly_invest','buy_monthly_invest','home_price','down_payment','home_insurance','lawyer_cost','inspection_cost','title_misc_cost','property_tax_yearly','maintenance_yearly','sell_price','new_home_price','sell_legal_fee','new_home_lawyer','new_home_inspection','new_home_title_appraisal'];
 
         function formatInput(el) {
             const num = parseFloat(el.value.replace(/,/g, ''));
@@ -280,6 +464,7 @@
         }
 
         function buildPayload() {
+            const homePrice = parseNumber('home_price', defaultState.home_price);
             return {
                 interest_rate: parseNumber('interest_rate', defaultState.interest_rate),
                 stock_return: parseNumber('stock_return', defaultState.stock_return),
@@ -288,13 +473,26 @@
                 rent_insurance: parseNumber('rent_insurance', defaultState.rent_insurance),
                 rent_increase: document.getElementById('rent_increase').checked,
                 rent_inflation: parseNumber('rent_inflation', defaultState.rent_inflation * 100),
-                initial_investment: parseNumber('initial_investment', defaultState.initial_investment),
+                starting_money: parseNumber('starting_money', defaultState.starting_money),
                 monthly_invest: parseNumber('monthly_invest', defaultState.monthly_invest),
-                home_price: parseNumber('home_price', defaultState.home_price),
+                buy_monthly_invest: parseNumber('buy_monthly_invest', defaultState.buy_monthly_invest),
+                home_price: homePrice,
                 down_payment: parseNumber('down_payment', defaultState.down_payment),
-                property_tax_rate: parseNumber('property_tax_rate', defaultState.property_tax_rate) / 100,
-                maintenance_rate: parseNumber('maintenance_rate', defaultState.maintenance_rate) / 100,
+                property_tax_rate: homePrice > 0 ? parseNumber('property_tax_yearly', defaultState.property_tax_yearly) / homePrice : 0,
+                maintenance_rate: homePrice > 0 ? parseNumber('maintenance_yearly', defaultState.maintenance_yearly) / homePrice : 0,
                 home_insurance: parseNumber('home_insurance', defaultState.home_insurance),
+                invest_sunk_diff: investSunkDiff,
+                plan_to_sell: document.getElementById('plan_to_sell').checked,
+                sell_year: parseInt(document.getElementById('sell_year').value) || 0,
+                sell_price: parseNumber('sell_price', 0),
+                sell_costs_rate: parseNumber('sell_costs_rate', 5) / 100,
+                sell_legal_fee: parseNumber('sell_legal_fee', defaultState.sell_legal_fee),
+                new_home_price: parseNumber('new_home_price', 0),
+                new_home_ltt_rate: parseNumber('new_home_ltt_rate', defaultState.new_home_ltt_rate) / 100,
+                new_home_lawyer_cost: parseNumber('new_home_lawyer', defaultState.new_home_lawyer),
+                new_home_inspection_cost: parseNumber('new_home_inspection', defaultState.new_home_inspection),
+                new_home_title_appraisal: parseNumber('new_home_title_appraisal', defaultState.new_home_title_appraisal),
+                new_home_gst_hst_rate: parseNumber('new_home_gst_hst_rate', defaultState.new_home_gst_hst_rate) / 100,
                 include_closing_costs: document.getElementById('include_closing_costs').checked,
                 closing_costs_amount: computeClosingCostsAmount().total,
                 years: parseNumber('years', defaultState.years),
@@ -327,8 +525,8 @@
             data: {
                 labels: [],
                 datasets: [
-                    { label: 'Rent Investment', borderColor: '#28a745', backgroundColor: 'rgba(40, 167, 69, 0.2)', data: [], fill: false, borderWidth: 2, pointRadius: 3, tension: 0.25 },
-                    { label: 'Home Equity', borderColor: '#6610f2', backgroundColor: 'rgba(102, 16, 242, 0.2)', data: [], fill: false, borderWidth: 2, pointRadius: 3, tension: 0.25 }
+                    { label: 'Rent Net Worth', borderColor: '#28a745', backgroundColor: 'rgba(40, 167, 69, 0.2)', data: [], fill: false, borderWidth: 2, pointRadius: 3, tension: 0.25 },
+                    { label: 'Buy Net Worth (equity + investments)', borderColor: '#6610f2', backgroundColor: 'rgba(102, 16, 242, 0.2)', data: [], fill: false, borderWidth: 2, pointRadius: 3, tension: 0.25 }
                 ]
             },
             options: {
@@ -344,6 +542,9 @@
         });
 
         async function calculate() {
+            updatePropertyTaxPercent();
+            updateMaintenancePercent();
+            if (document.getElementById('plan_to_sell').checked) updateSellPriceEstimate();
             const payload = buildPayload();
             try {
                 const response = await fetch('/calculate', {
@@ -362,6 +563,7 @@
                 updateReport(data);
                 updateCharts(data);
                 updateClosingCostBreakdown();
+                updateSellTransitionDisplay(data);
             } catch (error) {
                 console.error('Calculate failed', error);
             }
@@ -378,7 +580,8 @@
         function investTheDifference() {
             const rent = parseNumber('monthly_rent', defaultState.monthly_rent)
                        + parseNumber('rent_insurance', defaultState.rent_insurance);
-            const diff = Math.max(lastMonthlyBuyCost - rent, 0);
+            const diff = lastMonthlyBuyCost - rent;
+            if (diff <= 0) return;
             document.getElementById('monthly_invest').value = Math.round(diff);
             calculate();
         }
@@ -388,7 +591,21 @@
             const downPayment = parseNumber('down_payment', defaultState.down_payment);
             const closingCostsAmt = document.getElementById('include_closing_costs').checked ? computeClosingCostsAmount().total : 0;
             lastMonthlyBuyCost = ((data?.spending_buy?.[0] ?? 0) - downPayment - closingCostsAmt) / 12;
-            document.getElementById('mortgage').innerText = formatMoney(data?.mortgage_payment ?? 0);
+            const rentTotal = parseNumber('monthly_rent', defaultState.monthly_rent)
+                            + parseNumber('rent_insurance', defaultState.rent_insurance);
+            const investBtn = document.getElementById('investDiffRentBtn');
+            investBtn.disabled = lastMonthlyBuyCost <= rentTotal;
+            investBtn.title = investBtn.disabled ? 'Rent is already higher than buying — no savings to invest' : '';
+            const hasTransition = data?.sell_transition != null;
+            document.getElementById('mortgage').innerText = formatMoney(data?.original_mortgage_payment ?? 0);
+            document.getElementById('mortgage_label').innerText = hasTransition ? ' (previous home)' : '';
+            const nextRow = document.getElementById('next_mortgage_row');
+            if (hasTransition) {
+                nextRow.style.display = '';
+                document.getElementById('next_mortgage').innerText = formatMoney(data?.mortgage_payment ?? 0);
+            } else {
+                nextRow.style.display = 'none';
+            }
             document.getElementById('final_home_value').innerText = formatMoney(data?.final_home_value ?? 0);
             const totalSunk = (data?.total_interest_paid ?? 0) + (data?.total_property_tax_paid ?? 0) + (data?.total_maintenance_paid ?? 0) + (data?.total_home_insurance_paid ?? 0) + (data?.closing_costs ?? 0);
 
@@ -400,6 +617,59 @@
                 deltaEl.innerText = `Buying costs $${formatMoney(delta)} more in unrecoverable spending`;
             } else {
                 deltaEl.innerText = `Renting costs $${formatMoney(Math.abs(delta))} more in unrecoverable spending`;
+            }
+
+            const yr1BuySunk = ((data?.sunk_buy?.[0] ?? 0) - (data?.closing_costs ?? 0)) / 12;
+            const yr1RentSunk = (data?.spending_rent?.[0] ?? 0) / 12;
+            const yr1Diff = yr1RentSunk - yr1BuySunk;
+
+            const buyDiffNoteEl = document.getElementById('buy_invest_diff_note');
+            if (investSunkDiff) {
+                const note = document.getElementById('investDiffNote');
+                const rentArr = data?.spending_rent ?? [];
+                const buyArr = data?.sunk_buy ?? [];
+                const closingCosts = data?.closing_costs ?? 0;
+                const years = data?.years ?? [];
+                let tableRows = '';
+                years.forEach((yr, i) => {
+                    const annualRent = rentArr[i] - (i > 0 ? rentArr[i - 1] : 0);
+                    const annualBuyRaw = buyArr[i] - (i > 0 ? buyArr[i - 1] : 0);
+                    const annualBuy = i === 0 ? annualBuyRaw - closingCosts : annualBuyRaw;
+                    const diff = annualRent - annualBuy;
+                    const monthly = Math.round(Math.abs(diff) / 12);
+                    let label, color, bg;
+                    if (diff > 1) {
+                        label = 'buyer invests';
+                        color = '#155724';
+                        bg = i % 2 === 0 ? '#f0faf2' : '#e8f5ea';
+                    } else if (diff < -1) {
+                        label = 'renter invests';
+                        color = '#7b4000';
+                        bg = i % 2 === 0 ? '#fffbf0' : '#fff5e0';
+                    } else {
+                        label = 'even';
+                        color = '#888';
+                        bg = i % 2 === 0 ? '#fafafa' : '#f5f5f5';
+                    }
+                    tableRows += `<tr style="background:${bg};">
+                        <td style="padding:3px 6px;color:#666;white-space:nowrap;">Yr ${yr}</td>
+                        <td style="padding:3px 6px;text-align:right;font-weight:bold;color:${color};white-space:nowrap;">$${Math.round(Math.abs(diff)).toLocaleString('en-CA')}/yr</td>
+                        <td style="padding:3px 6px;color:#888;white-space:nowrap;">$${monthly.toLocaleString('en-CA')}/mo</td>
+                        <td style="padding:3px 6px;color:${color};font-style:italic;">${label}</td>
+                    </tr>`;
+                });
+                note.innerHTML = `<div style="color:#555;font-weight:bold;margin-bottom:5px;">Amount invested each year from the difference:</div>
+                    <div style="max-height:190px;overflow-y:auto;border:1px solid #ddd;border-radius:5px;">
+                        <table style="width:100%;font-size:0.76rem;border-collapse:collapse;">${tableRows}</table>
+                    </div>`;
+                buyDiffNoteEl.style.display = '';
+                if (yr1Diff > 0) {
+                    buyDiffNoteEl.innerText = `+ $${formatMoney(yr1Diff)}/mo from sunk cost difference (year 1)`;
+                } else {
+                    buyDiffNoteEl.innerText = `$0 from sunk cost difference in year 1 (renter benefits — buying costs more initially)`;
+                }
+            } else {
+                buyDiffNoteEl.style.display = 'none';
             }
 
             const buyWealth = data?.wealth_buy?.[data.wealth_buy.length - 1] ?? 0;
@@ -424,8 +694,8 @@
             const rentIncreaseEnabled = document.getElementById('rent_increase').checked;
             const homePrice = parseNumber('home_price', defaultState.home_price);
             const homeReturn = parseNumber('home_return', defaultState.home_return);
-            const maintRate = parseNumber('maintenance_rate', defaultState.maintenance_rate) / 100;
-            const taxRate = parseNumber('property_tax_rate', defaultState.property_tax_rate) / 100;
+            const maintRate = homePrice > 0 ? parseNumber('maintenance_yearly', defaultState.maintenance_yearly) / homePrice : 0;
+            const taxRate = homePrice > 0 ? parseNumber('property_tax_yearly', defaultState.property_tax_yearly) / homePrice : 0;
             const simYears = data?.years?.length ?? defaultState.years;
             const midYear = Math.round(simYears / 2);
             const valueY1   = homePrice * Math.pow(1 + homeReturn, 1);
@@ -471,6 +741,13 @@
             spendingChart.data.labels = years;
             spendingChart.data.datasets[0].data = data?.spending_rent ?? [];
             spendingChart.data.datasets[1].data = data?.sunk_buy ?? [];
+            if (investSunkDiff) {
+                spendingChart.data.datasets[0].fill = { target: 1, above: 'rgba(40,167,69,0.15)', below: 'rgba(255,193,7,0.18)' };
+                spendingChart.data.datasets[0].backgroundColor = 'rgba(40,167,69,0.15)';
+            } else {
+                spendingChart.data.datasets[0].fill = false;
+                spendingChart.data.datasets[0].backgroundColor = 'rgba(0,123,255,0.2)';
+            }
             spendingChart.update();
 
             wealthChart.data.labels = years;
@@ -501,6 +778,8 @@
             toggleRentInflation();
             toggleClosingCosts();
             updateClosingCostBreakdown();
+            updatePropertyTaxPercent();
+            updateMaintenancePercent();
             calculate();
         });
     </script>
