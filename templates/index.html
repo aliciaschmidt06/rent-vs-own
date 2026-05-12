@@ -33,9 +33,17 @@
         .info-cell { position: relative; }
         .info-popup { display: none; position: absolute; z-index: 200; left: 0; top: 120%; background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 10px 12px; font-size: 0.78rem; color: #444; box-shadow: 0 3px 10px rgba(0,0,0,0.15); width: 240px; line-height: 1.6; }
         .info-popup.visible { display: block; }
+        .tab-nav { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid #007bff; }
+        .tab-nav a { padding: 8px 20px; text-decoration: none; color: #555; font-size: 0.9rem; border-radius: 6px 6px 0 0; }
+        .tab-nav a.active { background: #007bff; color: white; }
+        .tab-nav a:not(.active):hover { background: #f0f0f0; }
     </style>
 </head>
 <body>
+    <div class="tab-nav">
+        <a href="/" class="active">Rent vs Buy</a>
+        <a href="/compare">Rent First, Then Buy</a>
+    </div>
     <h2>Rent vs Buy Calculator 🇨🇦</h2>
 
     <div class="row">

@@ -226,3 +226,106 @@ def simulate_rent_vs_buy(params):
         'new_cmhc_premium': round(new_cmhc_premium, 2),
         'sell_transition': sell_transition,
     }
+
+
+def simulate_rent_then_buy_comparison(params):
+    interest_rate = normalize_rate(params.get('interest_rate', 0.05))
+    stock_return = normalize_rate(params.get('stock_return', 0.07))
+    home_return = normalize_rate(params.get('home_return', 0.03))
+    total_years = max(safe_int(params.get('total_years'), 25), 2)
+    starting_money = max(safe_float(params.get('starting_money'), 0.0), 0.0)
+
+    monthly_rate = interest_rate / 12
+    stock_monthly_rate = stock_return / 12
+    home_monthly_rate = home_return / 12
+
+    # --- Scenario 1: Buy Now ---
+    home_price_now = max(safe_float(params.get('home_price_now'), 870_000.0), 0.0)
+    down_now = max(min(safe_float(params.get('down_payment_now'), 200_000.0), home_price_now), 0.0)
+    invest_owning_now = max(safe_float(params.get('invest_while_owning_now'), 2000.0), 0.0)
+
+    loan_now = home_price_now - down_now
+    num_p_now = total_years * 12
+    if loan_now <= 0:
+        mortgage_now = 0.0
+    elif monthly_rate > 0:
+        mortgage_now = loan_now * (monthly_rate * (1 + monthly_rate) ** num_p_now) / ((1 + monthly_rate) ** num_p_now - 1)
+    else:
+        mortgage_now = loan_now / num_p_now
+
+    # --- Scenario 2: Rent Then Buy ---
+    rent_years = max(min(safe_int(params.get('rent_years'), 3), total_years - 1), 1)
+    invest_renting = max(safe_float(params.get('invest_while_renting'), 2000.0), 0.0)
+    invest_owning_later = max(safe_float(params.get('invest_while_owning_later'), 2000.0), 0.0)
+    future_home_price = max(safe_float(params.get('future_home_price'), 1_200_000.0), 0.0)
+    future_mortgage_years = max(safe_int(params.get('future_mortgage_years'), 25), 1)
+
+    # --- Initial state ---
+    b1_balance = loan_now
+    b1_home = home_price_now
+    b1_invest = max(starting_money - down_now, 0.0)
+
+    b2_invest = starting_money * 0.80
+    b2_balance = 0.0
+    b2_home = 0.0
+    b2_mortgage = 0.0
+    b2_bought = False
+    b2_down_used = 0.0
+
+    wealth_buy_now = []
+    wealth_rent_then_buy = []
+
+    for year in range(1, total_years + 1):
+        for month in range(1, 13):
+            # Scenario 1: Buy Now — monthly mortgage + invest
+            if b1_balance > 0 and mortgage_now > 0:
+                interest = b1_balance * monthly_rate
+                principal = min(mortgage_now - interest, b1_balance)
+                b1_balance = max(b1_balance - principal, 0.0)
+            b1_home *= (1 + home_monthly_rate)
+            b1_invest = b1_invest * (1 + stock_monthly_rate) + invest_owning_now
+
+            # Scenario 2: Rent Then Buy
+            if not b2_bought:
+                b2_invest = b2_invest * (1 + stock_monthly_rate) + invest_renting
+                if year == rent_years and month == 12:
+                    # Purchase the future home using all accumulated savings as down payment
+                    b2_down_used = min(b2_invest, future_home_price)
+                    new_loan = max(future_home_price - b2_down_used, 0.0)
+                    b2_invest = max(b2_invest - future_home_price, 0.0)
+                    b2_home = future_home_price
+                    b2_balance = new_loan
+                    num_p_later = future_mortgage_years * 12
+                    if new_loan <= 0:
+                        b2_mortgage = 0.0
+                    elif monthly_rate > 0:
+                        b2_mortgage = new_loan * (monthly_rate * (1 + monthly_rate) ** num_p_later) / ((1 + monthly_rate) ** num_p_later - 1)
+                    else:
+                        b2_mortgage = new_loan / num_p_later
+                    b2_bought = True
+            else:
+                if b2_balance > 0 and b2_mortgage > 0:
+                    interest = b2_balance * monthly_rate
+                    principal = min(b2_mortgage - interest, b2_balance)
+                    b2_balance = max(b2_balance - principal, 0.0)
+                b2_home *= (1 + home_monthly_rate)
+                b2_invest = b2_invest * (1 + stock_monthly_rate) + invest_owning_later
+
+        b1_equity = max(b1_home - b1_balance, 0.0)
+        wealth_buy_now.append(round(b1_equity + b1_invest, 2))
+
+        if b2_bought:
+            b2_equity = max(b2_home - b2_balance, 0.0)
+            wealth_rent_then_buy.append(round(b2_equity + b2_invest, 2))
+        else:
+            wealth_rent_then_buy.append(round(b2_invest, 2))
+
+    return {
+        'years': list(range(1, total_years + 1)),
+        'wealth_buy_now': wealth_buy_now,
+        'wealth_rent_then_buy': wealth_rent_then_buy,
+        'mortgage_buy_now': round(mortgage_now, 2),
+        'mortgage_rent_then_buy': round(b2_mortgage, 2),
+        'down_used_rent_then_buy': round(b2_down_used, 2),
+        'rent_years': rent_years,
+    }

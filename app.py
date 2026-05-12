@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from services.calculator import simulate_rent_vs_buy
+from services.calculator import simulate_rent_vs_buy, simulate_rent_then_buy_comparison
 
 app = Flask(__name__)
 
@@ -78,6 +78,34 @@ def calculate():
     }
 
     result = simulate_rent_vs_buy(payload)
+    return jsonify(result)
+
+
+@app.route('/compare')
+def compare():
+    return render_template('compare.html')
+
+
+@app.route('/compare/calculate', methods=['POST'])
+def compare_calculate():
+    data = request.json or {}
+    payload = {
+        'interest_rate': parse_float(data.get('interest_rate'), 0.05),
+        'stock_return': parse_float(data.get('stock_return'), 0.07),
+        'home_return': parse_float(data.get('home_return'), 0.03),
+        'total_years': parse_int(data.get('total_years'), 25),
+        'starting_money': parse_float(data.get('starting_money'), 200_000.0),
+        'home_price_now': parse_float(data.get('home_price_now'), 870_000.0),
+        'down_payment_now': parse_float(data.get('down_payment_now'), 200_000.0),
+        'invest_while_owning_now': parse_float(data.get('invest_while_owning_now'), 2000.0),
+        'monthly_rent': parse_float(data.get('monthly_rent'), 3500.0),
+        'rent_years': parse_int(data.get('rent_years'), 5),
+        'invest_while_renting': parse_float(data.get('invest_while_renting'), 3000.0),
+        'future_home_price': parse_float(data.get('future_home_price'), 1_200_000.0),
+        'future_mortgage_years': parse_int(data.get('future_mortgage_years'), 25),
+        'invest_while_owning_later': parse_float(data.get('invest_while_owning_later'), 2000.0),
+    }
+    result = simulate_rent_then_buy_comparison(payload)
     return jsonify(result)
 
 
